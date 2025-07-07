@@ -31,10 +31,16 @@ const Dashboard = () => {
                       → P/L: ${stock.profitLoss.toFixed(2)}
                     </span>
                   )}
+                  <br />
+                  <small style={{ color: '#888' }}>
+                    Added on: {new Date(stock.timestamp).toLocaleString()}
+                  </small>
                 </li>
               ))}
             </ul>
-            <button className="clear-btn" onClick={handleClearStocks}>Clear All</button>
+            <button className="clear-btn" onClick={handleClearStocks}>
+              Clear All
+            </button>
           </>
         )}
       </div>

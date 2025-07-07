@@ -9,30 +9,46 @@ const StockForm = ({ onAddStock }) => {
     purchasePrice: ''
   });
 
+  const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
     setError('');
     setResult(null);
+
+    if (name === 'symbol' && value.length >= 2) {
+      fetchSuggestions(value);
+    } else if (name === 'symbol') {
+      setSuggestions([]);
+    }
   };
 
-  const validateSymbol = useCallback(async (symbol) => {
+  const fetchSuggestions = useCallback(async (query) => {
     try {
-      const res = await fetch(`https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${symbol}&apikey=${API_KEY}`);
+      const res = await fetch(
+        `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${query}&apikey=${API_KEY}`
+      );
       const data = await res.json();
-      return data.bestMatches?.some(match => match['1. symbol'].toUpperCase() === symbol.toUpperCase());
+      const matches =
+        data.bestMatches?.map((match) => ({
+          symbol: match['1. symbol'],
+          name: match['2. name']
+        })) || [];
+      setSuggestions(matches.slice(0, 5));
     } catch {
-      return false;
+      setSuggestions([]);
     }
   }, []);
 
   const fetchCurrentPrice = useCallback(async (symbol) => {
     try {
-      const res = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`);
+      const res = await fetch(
+        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`
+      );
       const data = await res.json();
       return parseFloat(data['Global Quote']?.['05. price']);
     } catch {
@@ -50,30 +66,26 @@ const StockForm = ({ onAddStock }) => {
     }
 
     setLoading(true);
-    const isValid = await validateSymbol(symbol);
-    if (!isValid) {
+    const currentPrice = await fetchCurrentPrice(symbol);
+    if (!currentPrice || isNaN(currentPrice)) {
       setError('No stocks available for the entered symbol.');
       setLoading(false);
       return;
     }
 
-    const currentPrice = await fetchCurrentPrice(symbol);
-    if (!currentPrice || isNaN(currentPrice)) {
-      setError('Could not retrieve current stock price.');
-      setLoading(false);
-      return;
-    }
-
-    const profitLoss = (currentPrice - parseFloat(purchasePrice)) * parseInt(quantity);
+    const profitLoss =
+      (currentPrice - parseFloat(purchasePrice)) * parseInt(quantity);
     setResult({ profitLoss, currentPrice });
 
     onAddStock({
       ...formData,
       currentPrice,
-      profitLoss
+      profitLoss,
+      timestamp: new Date().toISOString()
     });
 
     setFormData({ symbol: '', quantity: '', purchasePrice: '' });
+    setSuggestions([]);
     setLoading(false);
   };
 
@@ -87,9 +99,40 @@ const StockForm = ({ onAddStock }) => {
           value={formData.symbol}
           onChange={handleChange}
           placeholder="e.g. AAPL"
+          autoComplete="off"
           required
         />
+        {suggestions.length > 0 && (
+          <ul
+            style={{
+              background: '#1e1e1e',
+              padding: '0.5rem',
+              marginTop: '0.3rem',
+              borderRadius: '6px',
+              listStyle: 'none',
+              border: '1px solid #444'
+            }}
+          >
+            {suggestions.map((s, i) => (
+              <li
+                key={i}
+                style={{
+                  cursor: 'pointer',
+                  padding: '0.4rem',
+                  color: '#ffa500'
+                }}
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, symbol: s.symbol }));
+                  setSuggestions([]);
+                }}
+              >
+                <strong>{s.symbol}</strong> — {s.name}
+              </li>
+            ))}
+          </ul>
+        )}
       </label>
+
       <label>
         Quantity of Shares:
         <input
@@ -101,6 +144,7 @@ const StockForm = ({ onAddStock }) => {
           required
         />
       </label>
+
       <label>
         Purchase Price per Share:
         <input
@@ -113,6 +157,7 @@ const StockForm = ({ onAddStock }) => {
           required
         />
       </label>
+
       <button type="submit" disabled={loading}>
         {loading ? 'Adding...' : 'Add Stock'}
       </button>
@@ -129,8 +174,8 @@ const StockForm = ({ onAddStock }) => {
             color: result.profitLoss >= 0 ? 'limegreen' : 'crimson'
           }}
         >
-          Profit/Loss: ${result.profitLoss.toFixed(2)}  
-          &nbsp;|&nbsp; Current Price: ${result.currentPrice.toFixed(2)}
+          Profit/Loss: ${result.profitLoss.toFixed(2)} | Current Price: $
+          {result.currentPrice.toFixed(2)}
         </p>
       )}
     </form>

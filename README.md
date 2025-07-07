@@ -1,2 +1,0 @@
-# TanYinLing-Capstone
-
