@@ -1,17 +1,15 @@
-import React, { useState } from 'react';
+import React, { useContext } from 'react';
 import StockForm from './components/StockForm';
-
+import { StockContext } from './contexts/StockContext';
 
 const Dashboard = () => {
-  const [stocks, setStocks] = useState([]);
+  const { stocks, setStocks } = useContext(StockContext);
 
   const handleAddStock = (newStock) => {
-    setStocks((prev) => [...prev, newStock]);
+    setStocks(prev => [...prev, newStock]);
   };
 
-  const handleClearStocks = () => {
-    setStocks([]);
-  };
+  const handleClearStocks = () => setStocks([]);
 
   return (
     <div className="dashboard">
@@ -20,7 +18,6 @@ const Dashboard = () => {
 
       <div className="stock-list">
         <h3>Stock List</h3>
-
         {stocks.length === 0 ? (
           <p>No stocks added yet.</p>
         ) : (
@@ -29,12 +26,15 @@ const Dashboard = () => {
               {stocks.map((stock, index) => (
                 <li key={index}>
                   {stock.quantity} shares of {stock.symbol} at ${stock.purchasePrice}/share
+                  {stock.currentPrice && (
+                    <span style={{ marginLeft: '1rem', color: stock.profitLoss >= 0 ? 'limegreen' : 'crimson' }}>
+                      → P/L: ${stock.profitLoss.toFixed(2)}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
-            <button className="clear-btn" onClick={handleClearStocks}>
-              Clear All
-            </button>
+            <button className="clear-btn" onClick={handleClearStocks}>Clear All</button>
           </>
         )}
       </div>
