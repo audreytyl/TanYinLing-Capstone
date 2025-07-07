@@ -33,11 +33,10 @@ const StockForm = ({ onAddStock }) => {
         `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${query}&apikey=${API_KEY}`
       );
       const data = await res.json();
-      const matches =
-        data.bestMatches?.map((match) => ({
-          symbol: match['1. symbol'],
-          name: match['2. name']
-        })) || [];
+      const matches = data.bestMatches?.map((match) => ({
+        symbol: match['1. symbol'],
+        name: match['2. name']
+      })) || [];
       setSuggestions(matches.slice(0, 5));
     } catch {
       setSuggestions([]);
@@ -50,8 +49,15 @@ const StockForm = ({ onAddStock }) => {
         `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`
       );
       const data = await res.json();
-      return parseFloat(data['Global Quote']?.['05. price']);
-    } catch {
+      const price = parseFloat(data['Global Quote']?.['05. price']);
+
+      if (!price || isNaN(price)) {
+        throw new Error('Invalid or missing price data');
+      }
+
+      return price;
+    } catch (err) {
+      console.error('Error fetching price:', err.message);
       return null;
     }
   }, []);
@@ -66,9 +72,12 @@ const StockForm = ({ onAddStock }) => {
     }
 
     setLoading(true);
+    setError('');
+
     const currentPrice = await fetchCurrentPrice(symbol);
-    if (!currentPrice || isNaN(currentPrice)) {
-      setError('No stocks available for the entered symbol.');
+
+    if (currentPrice === null) {
+      setError('Failed to fetch stock price. Please try again.');
       setLoading(false);
       return;
     }
@@ -162,6 +171,12 @@ const StockForm = ({ onAddStock }) => {
         {loading ? 'Adding...' : 'Add Stock'}
       </button>
 
+      {loading && (
+        <p style={{ color: '#00ffff', marginTop: '1rem' }}>
+          Fetching current price...
+        </p>
+      )}
+
       {error && (
         <p style={{ color: 'tomato', marginTop: '1rem' }}>{error}</p>
       )}
@@ -174,8 +189,7 @@ const StockForm = ({ onAddStock }) => {
             color: result.profitLoss >= 0 ? 'limegreen' : 'crimson'
           }}
         >
-          Profit/Loss: ${result.profitLoss.toFixed(2)} | Current Price: $
-          {result.currentPrice.toFixed(2)}
+          Profit/Loss: ${result.profitLoss.toFixed(2)} | Current Price: ${result.currentPrice.toFixed(2)}
         </p>
       )}
     </form>
